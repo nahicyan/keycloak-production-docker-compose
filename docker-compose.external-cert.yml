@@ -1,9 +1,6 @@
-version: "3.7"
-
 services:
   keycloak:
-    container_name: keycloak_app
-    image: quay.io/keycloak/keycloak:latest
+    image: quay.io/keycloak/keycloak:latest  # removed container_name
     restart: always
     ports:
       - "8090:8080"
@@ -13,7 +10,7 @@ services:
       KC_HOSTNAME: ${KEYCLOAK_URL}
       KC_DB_URL: jdbc:postgresql://keycloak_postgres:5432/keycloak
       KC_DB: postgres
-      KC_DB_USERNAME:  ${POSTGRES_USER}
+      KC_DB_USERNAME: ${POSTGRES_USER}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
     depends_on:
       - keycloak_postgres
@@ -25,7 +22,6 @@ services:
       - --proxy-headers=xforwarded
 
   keycloak_postgres:
-    container_name: keycloak_postgres
     image: postgres:latest
     restart: always
     environment:
@@ -38,12 +34,10 @@ services:
     networks:
       - keycloak-network
 
-
 networks:
   keycloak-network:
-    name: keycloak-network
+    name: ${COMPOSE_PROJECT_NAME:-keycloak}-network
     driver: bridge
 
 volumes:
   postgres_data:
-
