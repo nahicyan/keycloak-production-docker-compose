@@ -12,6 +12,9 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 : "${POSTGRES_USER:?POSTGRES_USER is not set}"
+: "${KEYCLOAK_URL:?KEYCLOAK_URL is not set}"
+
+DOMAIN_SLUG=$(echo "$KEYCLOAK_URL" | tr '.' '_')
 
 CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps --format "{{.Name}}" keycloak_postgres 2>/dev/null | head -n1)
 
@@ -29,13 +32,16 @@ if [ ! -d "$BACKUP_DIR" ]; then
   exit 1
 fi
 
-mapfile -t FILES < <(find "$BACKUP_DIR" -maxdepth 1 -name "*.sql.gz" | sort -r)
+mapfile -t FILES < <(find "$BACKUP_DIR" -maxdepth 1 -name "${DOMAIN_SLUG}_*.sql.gz" | sort -r)
 
 if [ ${#FILES[@]} -eq 0 ]; then
-  echo "No .sql.gz backup files found in $BACKUP_DIR"
+  echo "No backups found for domain '$KEYCLOAK_URL' in $BACKUP_DIR"
   exit 1
 fi
 
+echo ""
+echo "Domain    : $KEYCLOAK_URL"
+echo "Container : $CONTAINER"
 echo ""
 echo "Available backups:"
 for i in "${!FILES[@]}"; do
@@ -53,7 +59,6 @@ fi
 SELECTED="${FILES[$((SELECTION-1))]}"
 
 echo ""
-echo "Container : $CONTAINER"
 echo "Backup    : $(basename "$SELECTED")"
 read -rp "This will overwrite the current keycloak database. Continue? [y/N]: " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then

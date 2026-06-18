@@ -20,6 +20,8 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
+DOMAIN_SLUG=$(echo "$KEYCLOAK_URL" | tr '.' '_')
+
 CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps --format "{{.Name}}" keycloak 2>/dev/null | head -n1)
 
 if [ -z "$CONTAINER" ]; then
@@ -36,13 +38,16 @@ if [ ! -d "$BACKUP_DIR" ]; then
   exit 1
 fi
 
-mapfile -t FILES < <(find "$BACKUP_DIR" -maxdepth 1 -name "*.json" | sort -r)
+mapfile -t FILES < <(find "$BACKUP_DIR" -maxdepth 1 -name "${DOMAIN_SLUG}_*.json" | sort -r)
 
 if [ ${#FILES[@]} -eq 0 ]; then
-  echo "No .json backup files found in $BACKUP_DIR"
+  echo "No backups found for domain '$KEYCLOAK_URL' in $BACKUP_DIR"
   exit 1
 fi
 
+echo ""
+echo "Domain    : $KEYCLOAK_URL"
+echo "Container : $CONTAINER"
 echo ""
 echo "Available backups:"
 for i in "${!FILES[@]}"; do
@@ -61,7 +66,6 @@ SELECTED="${FILES[$((SELECTION-1))]}"
 REALM=$(jq -r '.realm' "$SELECTED")
 
 echo ""
-echo "Container : $CONTAINER"
 echo "Backup    : $(basename "$SELECTED") (realm: $REALM)"
 read -rp "This will import/overwrite realm '$REALM'. Continue? [y/N]: " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then

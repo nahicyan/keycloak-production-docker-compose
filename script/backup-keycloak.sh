@@ -3,7 +3,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-BACKUP_DIR="$PROJECT_DIR/backup/keycloak"
 COMPOSE_FILE="$PROJECT_DIR/docker-compose.external-cert.yml"
 ENV_FILE="$PROJECT_DIR/.env"
 
@@ -21,6 +20,9 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
+DOMAIN_SLUG=$(echo "$KEYCLOAK_URL" | tr '.' '_')
+BACKUP_DIR="$PROJECT_DIR/backup/keycloak"
+
 CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps --format "{{.Name}}" keycloak 2>/dev/null | head -n1)
 
 if [ -z "$CONTAINER" ]; then
@@ -29,7 +31,8 @@ if [ -z "$CONTAINER" ]; then
 fi
 
 echo ""
-echo "Container: $CONTAINER"
+echo "Domain    : $KEYCLOAK_URL"
+echo "Container : $CONTAINER"
 read -rp "Proceed with backup? [y/N]: " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
   echo "Aborted."
@@ -57,7 +60,7 @@ REALMS=$(curl -sf "${BASE_URL}/admin/realms" \
   | jq -r '.[].realm')
 
 for REALM in $REALMS; do
-  BACKUP_FILE="$BACKUP_DIR/${REALM}_${TIMESTAMP}.json"
+  BACKUP_FILE="$BACKUP_DIR/${DOMAIN_SLUG}_${REALM}_${TIMESTAMP}.json"
   echo "Exporting realm: $REALM"
   curl -sf -X POST "${BASE_URL}/admin/realms/${REALM}/partial-export?exportClients=true&exportGroupsAndRoles=true" \
     -H "Authorization: Bearer $TOKEN" \
@@ -66,6 +69,6 @@ for REALM in $REALMS; do
 done
 
 # Retain last 7 days
-find "$BACKUP_DIR" -name "*.json" -mtime +7 -delete
+find "$BACKUP_DIR" -name "${DOMAIN_SLUG}_*.json" -mtime +7 -delete
 
 echo "Keycloak backup complete."
