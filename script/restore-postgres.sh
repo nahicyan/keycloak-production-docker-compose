@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+COMPOSE_FILE="$PROJECT_DIR/docker-compose.external-cert.yml"
 ENV_FILE="$PROJECT_DIR/.env"
 
 if [ -f "$ENV_FILE" ]; then
@@ -52,5 +53,5 @@ if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
 fi
 
 echo "Restoring..."
-gunzip -c "$SELECTED" | docker exec -i keycloak_postgres psql -U "$POSTGRES_USER" keycloak
+gunzip -c "$SELECTED" | docker compose -f "$COMPOSE_FILE" exec -T keycloak_postgres psql -U "$POSTGRES_USER" keycloak
 echo "Restore complete."
