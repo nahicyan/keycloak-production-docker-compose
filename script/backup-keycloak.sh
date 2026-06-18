@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 BACKUP_DIR="$PROJECT_DIR/backup/keycloak"
+COMPOSE_FILE="$PROJECT_DIR/docker-compose.external-cert.yml"
 ENV_FILE="$PROJECT_DIR/.env"
 
 if [ -f "$ENV_FILE" ]; then
@@ -20,8 +21,22 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
-mkdir -p "$BACKUP_DIR"
+CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps --format "{{.Name}}" keycloak 2>/dev/null | head -n1)
 
+if [ -z "$CONTAINER" ]; then
+  echo "Error: keycloak service is not running."
+  exit 1
+fi
+
+echo ""
+echo "Container: $CONTAINER"
+read -rp "Proceed with backup? [y/N]: " CONFIRM
+if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+  echo "Aborted."
+  exit 0
+fi
+
+mkdir -p "$BACKUP_DIR"
 BASE_URL="https://${KEYCLOAK_URL}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 

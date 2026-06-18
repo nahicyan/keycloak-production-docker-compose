@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+COMPOSE_FILE="$PROJECT_DIR/docker-compose.external-cert.yml"
 ENV_FILE="$PROJECT_DIR/.env"
 
 if [ -f "$ENV_FILE" ]; then
@@ -16,6 +17,13 @@ fi
 
 if ! command -v jq &>/dev/null; then
   echo "Error: jq is required but not installed. Run: apt install jq"
+  exit 1
+fi
+
+CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps --format "{{.Name}}" keycloak 2>/dev/null | head -n1)
+
+if [ -z "$CONTAINER" ]; then
+  echo "Error: keycloak service is not running."
   exit 1
 fi
 
@@ -51,8 +59,10 @@ fi
 
 SELECTED="${FILES[$((SELECTION-1))]}"
 REALM=$(jq -r '.realm' "$SELECTED")
+
 echo ""
-echo "Selected: $(basename "$SELECTED") (realm: $REALM)"
+echo "Container : $CONTAINER"
+echo "Backup    : $(basename "$SELECTED") (realm: $REALM)"
 read -rp "This will import/overwrite realm '$REALM'. Continue? [y/N]: " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
   echo "Aborted."

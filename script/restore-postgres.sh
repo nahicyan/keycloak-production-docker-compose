@@ -13,6 +13,13 @@ fi
 
 : "${POSTGRES_USER:?POSTGRES_USER is not set}"
 
+CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps --format "{{.Name}}" keycloak_postgres 2>/dev/null | head -n1)
+
+if [ -z "$CONTAINER" ]; then
+  echo "Error: keycloak_postgres service is not running."
+  exit 1
+fi
+
 DEFAULT_DIR="$PROJECT_DIR/backup/postgres"
 read -rp "Enter backup directory [$DEFAULT_DIR]: " BACKUP_DIR
 BACKUP_DIR="${BACKUP_DIR:-$DEFAULT_DIR}"
@@ -44,8 +51,10 @@ if ! [[ "$SELECTION" =~ ^[0-9]+$ ]] || [ "$SELECTION" -lt 1 ] || [ "$SELECTION" 
 fi
 
 SELECTED="${FILES[$((SELECTION-1))]}"
+
 echo ""
-echo "Selected: $(basename "$SELECTED")"
+echo "Container : $CONTAINER"
+echo "Backup    : $(basename "$SELECTED")"
 read -rp "This will overwrite the current keycloak database. Continue? [y/N]: " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
   echo "Aborted."

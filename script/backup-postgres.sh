@@ -14,6 +14,21 @@ fi
 
 : "${POSTGRES_USER:?POSTGRES_USER is not set}"
 
+CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps --format "{{.Name}}" keycloak_postgres 2>/dev/null | head -n1)
+
+if [ -z "$CONTAINER" ]; then
+  echo "Error: keycloak_postgres service is not running."
+  exit 1
+fi
+
+echo ""
+echo "Container: $CONTAINER"
+read -rp "Proceed with backup? [y/N]: " CONFIRM
+if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+  echo "Aborted."
+  exit 0
+fi
+
 mkdir -p "$BACKUP_DIR"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/keycloak_${TIMESTAMP}.sql.gz"
