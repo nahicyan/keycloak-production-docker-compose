@@ -60,12 +60,26 @@ SELECTED="${FILES[$((SELECTION-1))]}"
 
 echo ""
 echo "Backup    : $(basename "$SELECTED")"
-read -rp "This will overwrite the current keycloak database. Continue? [y/N]: " CONFIRM
+echo ""
+echo "WARNING: This will stop Keycloak, wipe and restore the database, then restart Keycloak."
+read -rp "Continue? [y/N]: " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
   echo "Aborted."
   exit 0
 fi
 
+echo "Stopping Keycloak..."
+docker compose -f "$COMPOSE_FILE" stop keycloak
+
+echo "Dropping and recreating database..."
+docker compose -f "$COMPOSE_FILE" exec -T keycloak_postgres psql -U "$POSTGRES_USER" postgres \
+  -c "DROP DATABASE IF EXISTS keycloak;" \
+  -c "CREATE DATABASE keycloak;"
+
 echo "Restoring..."
 gunzip -c "$SELECTED" | docker compose -f "$COMPOSE_FILE" exec -T keycloak_postgres psql -U "$POSTGRES_USER" keycloak
+
+echo "Starting Keycloak..."
+docker compose -f "$COMPOSE_FILE" start keycloak
+
 echo "Restore complete."

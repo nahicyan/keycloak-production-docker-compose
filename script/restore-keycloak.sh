@@ -65,9 +65,16 @@ fi
 SELECTED="${FILES[$((SELECTION-1))]}"
 REALM=$(jq -r '.realm' "$SELECTED")
 
+if [ "$REALM" = "master" ]; then
+  echo ""
+  echo "The master realm cannot be restored via realm import."
+  echo "Use restore-postgres.sh to do a full database restore instead."
+  exit 1
+fi
+
 echo ""
 echo "Backup    : $(basename "$SELECTED") (realm: $REALM)"
-read -rp "This will import/overwrite realm '$REALM'. Continue? [y/N]: " CONFIRM
+read -rp "This will delete and reimport realm '$REALM'. Continue? [y/N]: " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
   echo "Aborted."
   exit 0
@@ -86,6 +93,16 @@ if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
   exit 1
 fi
 
+# Delete existing realm if it exists
+HTTP_CHECK=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/admin/realms/${REALM}" \
+  -H "Authorization: Bearer $TOKEN")
+
+if [ "$HTTP_CHECK" = "200" ]; then
+  echo "Deleting existing realm '$REALM'..."
+  curl -sf -X DELETE "${BASE_URL}/admin/realms/${REALM}" \
+    -H "Authorization: Bearer $TOKEN"
+fi
+
 echo "Importing realm..."
 HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${BASE_URL}/admin/realms" \
   -H "Authorization: Bearer $TOKEN" \
@@ -93,10 +110,7 @@ HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${BASE_URL}/admin/
   -d @"$SELECTED")
 
 if [ "$HTTP_STATUS" = "201" ]; then
-  echo "Realm '$REALM' imported successfully."
-elif [ "$HTTP_STATUS" = "409" ]; then
-  echo "Realm '$REALM' already exists. Use the Keycloak admin console to do a full realm replace."
-  exit 1
+  echo "Realm '$REALM' restored successfully."
 else
   echo "Import failed with HTTP status $HTTP_STATUS."
   exit 1
